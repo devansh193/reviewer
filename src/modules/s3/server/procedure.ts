@@ -1,26 +1,12 @@
-import { getFileExtension } from "@/lib/utils";
-import {
-  baseProcedure,
-  createTRPCRouter,
-  protectedProcedure,
-} from "@/trpc/init";
 import { z } from "zod";
+import { db } from "@/db";
 import { v4 as uuidv4 } from "uuid";
+import { resumes } from "@/db/schema";
 import { s3Driver } from "@/s3/config";
 import { TRPCError } from "@trpc/server";
+import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 
 export const s3Router = createTRPCRouter({
-  hello: baseProcedure
-    .input(
-      z.object({
-        text: z.string(),
-      })
-    )
-    .query((opts) => {
-      return {
-        greeting: `hello ${opts.input.text}`,
-      };
-    }),
   getPreSignedUrl: protectedProcedure
     .input(
       z.object({
@@ -28,24 +14,31 @@ export const s3Router = createTRPCRouter({
         fileName: z.string(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
-        console.log("I am inside routers try.");
+        const userId = ctx?.user.id;
+        console.log("Generating pre-signed URL...");
         const { fileName, mimeType } = input;
-        const extension = getFileExtension(fileName);
         const id = uuidv4();
-        const attachmentkey = `${id}${
-          extension ? `.${extension}` : ""
-        }${fileName}`;
+        const s3Key = `${id}${fileName}`;
 
-        const { url, path } = await s3Driver.getUrlToUpload({
-          key: attachmentkey,
-          mimeType,
-        });
-        console.log(url, path);
+        const [s3UploadData, resume] = await Promise.all([
+          s3Driver.getUrlToUpload({ key: s3Key, mimeType }),
+          db
+            .insert(resumes)
+            .values({
+              userId,
+              s3key: s3Key,
+              review: {},
+            })
+            .returning({ id: resumes.id }),
+        ]);
+
+        console.log(s3UploadData.url, s3UploadData.path);
         return {
-          preSignedUrl: url,
-          path,
+          preSignedUrl: s3UploadData.url,
+          path: s3UploadData.path,
+          resumeId: resume[0].id,
         };
       } catch (error) {
         throw new TRPCError({

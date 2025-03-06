@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/trpc/client";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 type ImageUploaderProps = {
   value?: string | null;
@@ -24,8 +25,10 @@ export function ImageUploader({
   const [currentImage, setCurrentImage] = useState<string | undefined>(
     value || undefined
   );
+
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter(); // Get router instance
 
   const uploadMutation = trpc.s3.getPreSignedUrl.useMutation();
 
@@ -35,10 +38,12 @@ export function ImageUploader({
     setLoading(true);
     const selectedFile = e.target.files[0];
     try {
-      const { preSignedUrl, path } = await uploadMutation.mutateAsync({
-        mimeType: selectedFile.type,
-        fileName: selectedFile.name,
-      });
+      const { preSignedUrl, path, resumeId } = await uploadMutation.mutateAsync(
+        {
+          mimeType: selectedFile.type,
+          fileName: selectedFile.name,
+        }
+      );
 
       if (!preSignedUrl || !path) {
         toast.error("Failed to get pre-signed URL");
@@ -46,11 +51,11 @@ export function ImageUploader({
         return;
       }
       await uploadFileToS3({ file: selectedFile, preSignedUrl });
-
       const imageUrl = generateS3Url(path);
       setCurrentImage(imageUrl);
       onChange?.(path);
       toast.success("Image uploaded successfully!");
+      router.push(`/review/${resumeId}`);
     } catch (error) {
       toast.error(`Upload failed. Please try again.${error}`);
       console.log(error);
@@ -60,7 +65,12 @@ export function ImageUploader({
   };
 
   return (
-    <div className={cn("relative h-40 w-40", className)}>
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center gap-y-10 w-full h-full",
+        className
+      )}
+    >
       <Avatar className="h-full w-full">
         <AvatarImage src={currentImage} className="object-cover" />
         <AvatarFallback className="bg-secondary">

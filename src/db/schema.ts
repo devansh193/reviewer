@@ -16,7 +16,6 @@ export const resumes = pgTable("resumes", {
     .references(() => users.id, { onDelete: "cascade" })
     .notNull(),
   s3key: text("s3_key").notNull(),
-  s3Url: text("s3_url").notNull(),
   review: jsonb("review").default({}),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

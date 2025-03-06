@@ -8,7 +8,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 export const PUT_ASSETS_EXPIRES_IN = 4 * 60;
 export const GET_ASSETS_EXPIRED_IN = 4 * 60 * 60;
-export const FOLDER = "attachment";
+export const FOLDER = "resume";
 
 export interface S3DriverOptions extends S3ClientConfig {
   bucketName: string;
@@ -18,6 +18,7 @@ export interface S3DriverOptions extends S3ClientConfig {
 export class S3Service {
   private s3Client: S3;
   private bucketName: string;
+
   constructor(options: S3DriverOptions) {
     const { bucketName, region, ...s3options } = options;
     if (!(bucketName && region)) {
